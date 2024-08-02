@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation to other models
+  bookings  Booking[] @relation("UserBookings")
+  cards     Cards[]
+}
+
+model Customer {
+  id           String   @id @default(cuid())
+  fullName     String
+  email        String   @unique
+  phone        String
+  address      String
+  city         String
+  postalCode   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relation to other models
+  bookings     Booking[]
+  tickets      Ticket[]
+}
+
+model Cards {
+  id             String   @id @default(cuid())
+  userId         String
+  bank           String
+  cardNumber     String
+  expiredDate    DateTime
+  cvv            String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relation to other models
+  user           User     @relation(fields: [userId], references: [id])
+}
+
+model Ticket {
+  id             String   @id @default(cuid())
+  customerId     String
+  bookingId      String
+  departureDate  DateTime
+  arrivalDate    DateTime
+  departureCity  String
+  arrivalCity    String
+  departureCode  String
+  arrivalCode    String
+  flightDuration Int
+  departureTime  DateTime
+  arrivalTime    DateTime
+  terminal       String
+  gate           String
+  meal           Boolean
+  wifi           Boolean
+  luggage        Boolean
+  status         String
+  qr             String
+  totalPrice     Float
+  price          Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relation to other models
+  booking        Booking @relation(fields: [bookingId], references: [id])
+  customer       Customer @relation(fields: [customerId], references: [id])
+}
+
+model Booking {
+  id             String   @id @default(cuid())
+  airlines       String
+  passengerId    String
+  userId         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relation to other models
+  passenger      Passenger @relation(fields: [passengerId], references: [id])
+  tickets        Ticket[]
+  customer       Customer? @relation(fields: [passengerId], references: [id], map: "Booking_customerId_fkey")
+  user           User?     @relation("UserBookings", fields: [userId], references: [id])
+}
+
+model Passenger {
+  id             String   @id @default(cuid())
+  fullName       String
+  email          String
+  phone          String
+  nationality    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relation to other models
+  bookings       Booking[]
+}
