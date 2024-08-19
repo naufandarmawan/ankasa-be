@@ -1,5 +1,6 @@
 const common = require("../../../helpers/common");
 const jwtAuth = require("../../../helpers/authentication");
+const userModel = require("../user/model");
 
 const signIn = async (payload) => {
   const result = await userModel.findByEmail(payload);
