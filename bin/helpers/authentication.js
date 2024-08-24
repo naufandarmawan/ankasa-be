@@ -111,7 +111,7 @@ const isAdmin = async (req, res, next) => {
       message: 'Access denied!',
       code: 403
     });
-  }
+  }                       
   next();
 };
 

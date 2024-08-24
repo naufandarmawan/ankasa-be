@@ -1,264 +1,195 @@
-const util = require("util");
 const { v4: uuidv4 } = require("uuid");
-const path = require("path");
-const fs = require("fs");
-const model = require("./model");
-const common = require("../../../helpers/common");
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
+const bcrypt = require("bcryptjs");
 
 const createCustomer = async (data) => {
   try {
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         id: uuidv4(),
         email: data.email,
         password: hashedPassword,
-        role: "customer",
+        role: "Customer",
       },
     });
 
-    await prisma.customer.create({
+    const newCustomer = await prisma.customer.create({
       data: {
         id: uuidv4(),
-        email: data.email,
         user_id: newUser.id,
-        name: data.name,
+        email: data.email,
+        full_name: data.full_name,
+        city: data.city || "",
+        address: data.address || "",
+        postal_code: data.postal_code || "",
+        phone: data.phone || "",
+        photo: data.photo || "",
       },
     });
 
-    return { err: null, data: null };
+    return { err: null, data: { user: newUser, customer: newCustomer } };
   } catch (error) {
+    console.error("Error creating customer:", error);
     return { err: { message: error.message, code: 500 }, data: null };
   }
 };
 
-// const getProfile = async (payload) => {
-//   const result = await model.findByEmail(payload)
-//   if(result.err) {
-//     return result;
-//   }
+const deleteCustomer = async (customerId) => {
+  try {
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      include: { user: true },
+    });
 
-//   delete result.data.password;
-//   return {
-//     err: null,
-//     data: result.data
-//   }
-// }
+    if (!customer) {
+      return { err: { message: "Customer not found", code: 404 }, data: null };
+    }
 
-// const updateProfile = async (payload) => {
-//   const result = await model.findByEmail(payload)
-//   if(result.err) {
-//     return result;
-//   }
+    await prisma.$transaction([
+      prisma.customer.delete({ where: { id: customerId } }),
+      prisma.user.delete({ where: { id: customer.user.id } }),
+    ]);
 
-//   payload.id_user = result.data.id;
-//   const profileObj = {
-//     fullname: payload.fullname
-//   }
-//   if(payload.photo) {
-//     const file = payload.photo;
-//     const newFileName = uuidv4() + path.extname(file.name)
-//     const uploadPath = "./bin/assets/file/" + newFileName
-//     await util.promisify(file.mv)(uploadPath)
-//     if(result.data.file_name) {
-//       fs.unlink("./bin/assets/file/"+result.data.file_name, (err) => {
-//         if (err) console.log('error delete file => ', err);;
-//       });
-//     }
-//     profileObj.file_name = newFileName;
-//     profileObj.file_path = "/files";
-//   }
+    return { err: null, data: { message: "Customer deleted successfully" } };
+  } catch (error) {
+    console.error("Error deleting customer:", error);
+    return { err: { message: error.message, code: 500 }, data: null };
+  }
+};
 
-//   const update = await model.updateOne(profileObj, payload);
-//   if(update.err) {
-//     return update;
-//   }
+const readCustomer = async (customerId) => {
+  try {
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      include: { user: { select: { email: true, role: true } } },
+    });
 
-//   delete update.data.password;
-//   return {
-//     err: null,
-//     data: update.data
-//   }
-// }
+    if (!customer) {
+      return { err: { message: "Customer not found", code: 404 }, data: null };
+    }
 
-// const deletePhoto = async (payload) => {
-//   const result = await model.findByEmail(payload)
-//   if(result.err) {
-//     return result;
-//   }
+    return { err: null, data: customer };
+  } catch (error) {
+    console.error("Error reading customer:", error);
+    return { err: { message: error.message, code: 500 }, data: null };
+  }
+};
 
-//   if(result.data.file_name) {
-//     fs.unlink("./bin/assets/file/"+result.data.file_name, (err) => {
-//       if (err) console.log('error delete file => ', err);;
-//     });
+const updateCustomer = async (customerId, data) => {
+  try {
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      include: { user: true },
+    });
 
-//     payload.id_user = result.data.id;
-//     const profileObj = {
-//       file_name: null,
-//       file_path: null
-//     }
-//     const update = await model.updateOne(profileObj, payload);
-//     if(update.err) {
-//       return update;
-//     }
+    if (!customer) {
+      return { err: { message: "Customer not found", code: 404 }, data: null };
+    }
 
-//     delete update.data.password;
-//     return {
-//       err: null,
-//       data: update.data
-//     }
-//   }
+    const updatedCustomer = await prisma.$transaction(async (prisma) => {
+      const updatedCustomer = await prisma.customer.update({
+        where: { id: customerId },
+        data: {
+          full_name: data.full_name,
+          city: data.city,
+          address: data.address,
+          postal_code: data.postal_code,
+          phone: data.phone,
+          photo: data.photo,
+        },
+      });
 
-//   delete result.data.password;
-//   return {
-//     err: null,
-//     data: result.data
-//   }
-// }
+      if (data.email) {
+        await prisma.user.update({
+          where: { id: customer.user.id },
+          data: { email: data.email },
+        });
+      }
 
-// const changePassword = async (payload) => {
-//   const result = await model.findByEmail(payload)
-//   if(result.err) {
-//     return result;
-//   }
+      if (data.password) {
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+        await prisma.user.update({
+          where: { id: customer.user.id },
+          data: { password: hashedPassword },
+        });
+      }
 
-//   payload.id_user = result.data.id;
-//   if(await common.decryptHash(payload.old_password, result.data.password)) {
-//     const userObj = {
-//       password: await common.generateHash(payload.new_password)
-//     };
+      return updatedCustomer;
+    });
 
-//     const update = await model.updateOne(userObj, payload);
-//     if(update.err) {
-//       return update;
-//     }
+    return { err: null, data: updatedCustomer };
+  } catch (error) {
+    console.error("Error updating customer:", error);
+    return { err: { message: error.message, code: 500 }, data: null };
+  }
+};
 
-//     return {
-//       err: null,
-//       data: ''
-//     }
-//   }
+const getCustomerProfileByEmail = async (email) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { Customer: true },
+    });
 
-//   return {
-//     err: { message: 'password is wrong!', code: 401 },
-//     data: null
-//   }
-// }
+    if (!user || !user.customer) {
+      return { err: { message: "Customer not found", code: 404 }, data: null };
+    }
 
-// const getUsers = async (payload) => {
-//   const rsUsers = await model.findAll(payload);
-//   if(rsUsers.err) {
-//     return rsUsers;
-//   }
+    const { password, ...userWithoutPassword } = user;
+    const profile = {
+      ...userWithoutPassword,
+      ...user.customer,
+    };
 
-//   rsUsers.data = {
-//     current_page: payload.page,
-//     page_size: payload.limit,
-//     total_page: Math.ceil(rsUsers.data.count / payload.limit),
-//     ...rsUsers.data
-//   }
+    return { err: null, data: profile };
+  } catch (error) {
+    console.error("Error getting customer profile:", error);
+    return { err: { message: error.message, code: 500 }, data: null };
+  }
+};
 
-//   return {
-//     err: null,
-//     data: rsUsers.data
-//   }
-// }
-// const deleteUser = async (payload)=>{
-//   const result = await model.deleteOne(payload.id)
-//   console.log(result);
-//   if (result.err) {
-//     return result;
-//   }
-//   if(result.data <1){
-//     return {
-//       err: { message: 'User not found!', code: 404 },
-//       data: null
-//     }
-//   }
-//   return {
-//     err: null,
-//     data: {id: payload.id}
-//   }
-// }
+const getAllCustomers = async () => {
+  try {
+    const customers = await prisma.customer.findMany({
+      select: {
+        id: true,
+        user_id: true,
+        email: true,
+        full_name: true,
+        address: true,
+        city: true,
+        postal_code: true,
+        phone: true,
+        photo: true,
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    });
 
-// const create = async (payload) => {
-//   const result = await model.findByEmail(payload)
-//   if(result.err) {
-//     if(result.err.code != 404) {
-//       return result;
-//     }
+    const formattedCustomers = customers.map((customer) => ({
+      ...customer,
+      email: customer.user.email,
+      user: undefined,
+    }));
 
-//     const userObj = {
-//       email: payload.email,
-//       fullname: payload.fullname,
-//       password: await common.generateHash(payload.password),
-//       role: payload.role,
-//       file_name: null,
-//       file_path: null,
-//       division_id: payload.division_id
-//     };
-
-//     const insert = await model.insertOne(userObj);
-//     if(insert.err) {
-//       return insert;
-//     }
-
-//     return {
-//       err: null,
-//       data: insert.data
-//     }
-//   }
-
-//   return {
-//     err: { message: 'email is already taken!', code: 409 },
-//     data: null
-//   }
-// }
-
-// const update = async (payload) => {
-//   const checkUser = await model.findOne(payload)
-//   if(checkUser.err) {
-//     return checkUser;
-//   }
-
-//   if(checkUser.data.email != payload.email) {
-//     const result = await model.findByEmail(payload)
-//     if(result.err) {
-//       if(result.err.code != 404) {
-//         return result;
-//       }
-//     }
-//     if(!result.err) {
-//       return {
-//         err: { message: 'email is already taken!', code: 409 },
-//         data: null
-//       }
-//     }
-//   }
-//   console.log('isi division id :', payload.division_id);
-
-//   const userObj = {
-//     email: payload.email,
-//     fullname: payload.fullname,
-//     role: payload.role,
-//     division_id: payload.division_id
-//   };
-//   if (payload.password){
-//     userObj.password = await common.generateHash(payload.password)
-//   }
-
-//   const update = await model.updateOne(userObj, payload);
-//   if(update.err) {
-//     return update;
-//   }
-
-//   return {
-//     err: null,
-//     data: update.data
-//   }
-// }
+    return { err: null, data: formattedCustomers };
+  } catch (error) {
+    console.error("Error getting all customers:", error);
+    return { err: { message: error.message, code: 500 }, data: null };
+  }
+};
 
 module.exports = {
   createCustomer,
+  readCustomer,
+  deleteCustomer,
+  updateCustomer,
+  getCustomerProfileByEmail,
+  getAllCustomers,
 };
