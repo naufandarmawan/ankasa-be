@@ -1,20 +1,21 @@
-const apiV1Route = require('./apis/v1');
+const express = require("express");
+const apiV1Route = require("./apis/v1");
 
 function init(server) {
-  server.get('*', (req, res, next) => {
+  server.get("*", (req, res, next) => {
     return next();
   });
 
-  server.get('/', (req, res) => {
+  server.get("/", (req, res) => {
     return res.status(200).json({
-      message: 'App is working!'
+      message: "App is working!",
     });
   });
 
-  server.use('/api/v1', apiV1Route);
+  server.use("/api/v1", apiV1Route);
 
   server.use((req, res, next) => {
-    const error = new Error('Page Not found!');
+    const error = new Error("Page Not found!");
     error.status = 404;
     next(error);
   });
@@ -23,13 +24,13 @@ function init(server) {
     res.status(err.status || 500);
     res.json({
       success: false,
-      data: '',
+      data: "",
       message: err.message,
-      code: err.status || 500
+      code: err.status || 500,
     });
   });
 }
 
 module.exports = {
-  init: init
+  init: init,
 };
