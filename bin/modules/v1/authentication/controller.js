@@ -1,21 +1,28 @@
 const common = require("../../../helpers/common");
 const jwtAuth = require("../../../helpers/authentication");
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
 const signIn = async (payload) => {
-  const result = await userModel.findByEmail(payload);
-  if (result.err) {
-    return result;
+  const result = await prisma.user.findUnique({
+    where: { email: payload.email },
+  });
+  if (!result) {
+    return {
+      err: { message: "User not found", code: 404 },
+      data: null,
+    };
   }
 
-  if (await common.decryptHash(payload.password, result.data.password)) {
+  if (await common.decryptHash(payload.password, result.password)) {
     const tokenData = {
-      email: result.data.email,
-      fullname: result.data.fullname,
-      role: result.data.role,
+      email: result.email,
+      fullname: result.fullname,
+      role: result.role,
     };
     const token = await jwtAuth.generateToken(tokenData);
     const refresh_token = await jwtAuth.generateRefreshToken(tokenData);
-    const { email, fullname, role } = result.data;
+    const { email, fullname, role } = result;
     const data = { email, fullname, role, token, refresh_token };
     return {
       err: null,

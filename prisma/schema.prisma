@@ -1,21 +1,13 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client-js"
+  provider           = "prisma-client-js"
   migrationDirectory = "prisma/migrations"
 }
 
 datasource db {
   provider          = "postgresql"
   url               = env("DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-// User Model
 model User {
   id         String    @id @default(cuid())
   email      String    @unique
@@ -26,10 +18,8 @@ model User {
   Customer   Customer?
 }
 
-// Customer Model
 model Customer {
   id          String      @id @default(cuid())
-  User        User        @relation(fields: [user_id], references: [id])
   user_id     String      @unique
   full_name   String
   city        String
@@ -40,15 +30,14 @@ model Customer {
   photo       String?
   created_at  DateTime    @default(now())
   updated_at  DateTime    @updatedAt
+  Bookings    Booking[]
   Cards       Card[]
-  Bookings     Booking[]
-  Passengers   Passenger[]
+  User        User        @relation(fields: [user_id], references: [id])
+  Passengers  Passenger[]
 }
 
-// Card Model
 model Card {
   id           String   @id @default(cuid())
-  Customer     Customer @relation(fields: [customer_id], references: [id])
   customer_id  String
   bank         String
   card_number  String
@@ -57,9 +46,9 @@ model Card {
   balance      Float
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
+  Customer     Customer @relation(fields: [customer_id], references: [id])
 }
 
-// Ticket Model
 model Ticket {
   id              String    @id @default(cuid())
   airlines        String
@@ -82,16 +71,13 @@ model Ticket {
   Bookings        Booking[]
 }
 
-// Booking Model
 model Booking {
   id          String      @id @default(cuid())
   full_name   String
   email       String
   phone       String
   insurance   Boolean
-  Ticket      Ticket      @relation(fields: [ticket_id], references: [id])
   ticket_id   String
-  Customer    Customer    @relation(fields: [customer_id], references: [id])
   customer_id String
   terminal    String
   gate        String
@@ -101,19 +87,20 @@ model Booking {
   total_price Float
   created_at  DateTime    @default(now())
   updated_at  DateTime    @updatedAt
+  Customer    Customer    @relation(fields: [customer_id], references: [id])
+  Ticket      Ticket      @relation(fields: [ticket_id], references: [id])
   Passengers  Passenger[]
 }
 
-// Passenger Model
 model Passenger {
   id          String   @id @default(cuid())
-  Booking     Booking  @relation(fields: [booking_id], references: [id])
   booking_id  String
-  Customer    Customer @relation(fields: [customer_id], references: [id])
   customer_id String
   title       String
   full_name   String
   nationality String
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
+  Booking     Booking  @relation(fields: [booking_id], references: [id])
+  Customer    Customer @relation(fields: [customer_id], references: [id])
 }
