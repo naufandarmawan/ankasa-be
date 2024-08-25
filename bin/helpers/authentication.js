@@ -1,11 +1,11 @@
-const jwt = require('jsonwebtoken');
-const config = require('../configs/config');
+const jwt = require("jsonwebtoken");
+const config = require("../configs/config");
 
 const generateToken = async (payload) => {
   const secretKey = config.secretKeyJwt;
   const verifyOptions = {
-    issuer: 'angkasa',
-    expiresIn: '1 hours'
+    issuer: "angkasa",
+    expiresIn: "1 hours",
   };
   const token = jwt.sign(payload, secretKey, verifyOptions);
   return token;
@@ -14,16 +14,20 @@ const generateToken = async (payload) => {
 const generateRefreshToken = async (payload) => {
   const secretKey = config.secretKeyJwt;
   const verifyOptions = {
-    issuer: 'angkasa',
-    expiresIn: '1 days'
+    issuer: "angkasa",
+    expiresIn: "1 days",
   };
   const token = jwt.sign(payload, secretKey, verifyOptions);
   return token;
 };
 
 const getToken = (headers) => {
-  if (headers && headers.authorization && headers.authorization.includes('Bearer')) {
-    const parted = headers.authorization.split(' ');
+  if (
+    headers &&
+    headers.authorization &&
+    headers.authorization.includes("Bearer")
+  ) {
+    const parted = headers.authorization.split(" ");
     if (parted.length === 2) {
       return parted[1];
     }
@@ -34,16 +38,16 @@ const getToken = (headers) => {
 const verifyToken = async (req, res, next) => {
   const secretKey = config.secretKeyJwt;
   const verifyOptions = {
-    issuer: 'angkasa',
+    issuer: "angkasa",
   };
 
   const token = getToken(req.headers);
   if (!token) {
     return res.status(403).json({
       success: false,
-      data: '',
-      message: 'Invalid token!',
-      code: 403
+      data: "",
+      message: "Invalid token!",
+      code: 403,
     });
   }
   let decodedToken;
@@ -53,16 +57,16 @@ const verifyToken = async (req, res, next) => {
     if (error instanceof jwt.TokenExpiredError) {
       return res.status(401).json({
         success: false,
-        data: '',
-        message: 'Access token expired!',
-        code: 401
+        data: "",
+        message: "Access token expired!",
+        code: 401,
       });
     }
     return res.status(401).json({
       success: false,
-      data: '',
-      message: 'Token is not valid!',
-      code: 401
+      data: "",
+      message: "Token is not valid!",
+      code: 401,
     });
   }
   req.decodedToken = decodedToken;
@@ -72,44 +76,48 @@ const verifyToken = async (req, res, next) => {
 const verifyRefreshToken = async (payload) => {
   const secretKey = config.secretKeyJwt;
   const verifyOptions = {
-    issuer: 'angkasa',
+    issuer: "angkasa",
   };
 
   if (!payload.refresh_token) {
     return {
-      err: { message: 'Invalid token!', code: 403 },
-      data: null
+      err: { message: "Invalid token!", code: 403 },
+      data: null,
     };
   }
   let decodedToken;
   try {
-    decodedToken = await jwt.verify(payload.refresh_token, secretKey, verifyOptions);
+    decodedToken = await jwt.verify(
+      payload.refresh_token,
+      secretKey,
+      verifyOptions
+    );
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
       return {
-        err: { message: 'Access token expired!', code: 401 },
-        data: null
+        err: { message: "Access token expired!", code: 401 },
+        data: null,
       };
     }
     return {
-      err: { message: 'Token is not valid!', code: 401 },
-      data: null
+      err: { message: "Token is not valid!", code: 401 },
+      data: null,
     };
   }
   return {
     err: null,
-    data: decodedToken
-  }
+    data: decodedToken,
+  };
 };
 
 const isAdmin = async (req, res, next) => {
   const decodedToken = req.decodedToken;
-  if(decodedToken.role !== 'superadmin') {
+  if (decodedToken.role !== "superadmin") {
     return res.status(403).json({
       success: false,
-      data: '',
-      message: 'Access denied!',
-      code: 403
+      data: "",
+      message: "Access denied!",
+      code: 403,
     });
   }
   next();
@@ -120,5 +128,5 @@ module.exports = {
   generateRefreshToken,
   verifyToken,
   verifyRefreshToken,
-  isAdmin
+  isAdmin,
 };

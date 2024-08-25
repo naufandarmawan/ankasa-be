@@ -1,7 +1,7 @@
-const fileUpload = require('express-fileupload');
+const fileUpload = require("express-fileupload");
 
-const setUpload = fileUpload()
+const setUpload = fileUpload();
 
 module.exports = {
-  setUpload
-}
+  setUpload,
+};
