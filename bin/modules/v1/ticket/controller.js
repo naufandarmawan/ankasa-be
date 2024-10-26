@@ -72,9 +72,89 @@ const createTicket = async (payload) => {
 
 // Get all tickets
 const getTickets = async (payload) => {
-  const totalCount = await prisma.ticket.count();
+  // Build filter conditions
+  const where = {};
 
+  // Transit filter
+  if (payload.transit) {
+    where.transit = payload.transit;
+  }
+
+  // Facilities filter
+  if (payload.facilities) {
+    if (payload.facilities.luggage !== undefined) {
+      where.luggage = payload.facilities.luggage;
+    }
+    if (payload.facilities.meal !== undefined) {
+      where.meal = payload.facilities.meal;
+    }
+    if (payload.facilities.wifi !== undefined) {
+      where.wifi = payload.facilities.wifi;
+    }
+  }
+
+  // Departure time range filter
+  if (payload.departure_time_range) {
+    const [start, end] = payload.departure_time_range.split("-");
+    where.departure_time = {
+      gte: new Date(`1970-01-01T${start}:00`),
+      lt: new Date(`1970-01-01T${end}:00`),
+    };
+  }
+
+  // Arrival time range filter
+  if (payload.arrival_time_range) {
+    const [start, end] = payload.arrival_time_range.split("-");
+    where.arrival_time = {
+      gte: new Date(`1970-01-01T${start}:00`),
+      lt: new Date(`1970-01-01T${end}:00`),
+    };
+  }
+
+  // Airlines filter
+  if (payload.airlines?.length > 0) {
+    where.airlines = {
+      in: payload.airlines,
+    };
+  }
+
+  // Price range filter
+  if (payload.price_range) {
+    where.price = {};
+    if (payload.price_range.min !== undefined) {
+      where.price.gte = payload.price_range.min;
+    }
+    if (payload.price_range.max !== undefined) {
+      where.price.lte = payload.price_range.max;
+    }
+  }
+
+  // Flight route filters
+  if (payload.departure_city) {
+    where.departure_city = payload.departure_city;
+  }
+  if (payload.arrival_city) {
+    where.arrival_city = payload.arrival_city;
+  }
+  if (payload.departure_date) {
+    where.departure_date = {
+      gte: new Date(payload.departure_date),
+      lt: new Date(
+        new Date(payload.departure_date).setDate(
+          new Date(payload.departure_date).getDate() + 1
+        )
+      ),
+    };
+  }
+
+  // Get total count with filters
+  const totalCount = await prisma.ticket.count({
+    where,
+  });
+
+  // Get filtered results
   const result = await prisma.ticket.findMany({
+    where,
     skip: (payload.page - 1) * payload.limit,
     take: payload.limit,
     orderBy: {
@@ -227,7 +307,6 @@ const deleteTicket = async (payload) => {
     err: null,
     data: result,
   };
-
 
   try {
     const ticket = await prisma.ticket.delete({
